@@ -32,21 +32,22 @@ type App struct {
 	opts             []option.ClientOption
 }
 
-func NewApp(ctx context.Context) (*App, error) {
+func NewApp(ctx context.Context, config *firebase.Config, opts ...option.ClientOption) (*App, error) {
 	o := []option.ClientOption{option.WithScopes(firebaseScopes...)}
+	o = append(o, opts...)
 	creds, err := transport.Creds(ctx, o...)
 	if err != nil {
 		return nil, err
 	}
-
-	var conf *firebase.Config
-	if conf, err = getConfigDefaults(); err != nil {
-		return nil, err
+	if config == nil {
+		if config, err = getConfigDefaults(); err != nil {
+			return nil, err
+		}
 	}
 
 	var pid string
-	if conf.ProjectID != "" {
-		pid = conf.ProjectID
+	if config.ProjectID != "" {
+		pid = config.ProjectID
 	} else if creds.ProjectID != "" {
 		pid = creds.ProjectID
 	} else {
@@ -57,17 +58,17 @@ func NewApp(ctx context.Context) (*App, error) {
 	}
 
 	ao := make(map[string]interface{})
-	if conf.AuthOverride != nil {
-		ao = *conf.AuthOverride
+	if config.AuthOverride != nil {
+		ao = *config.AuthOverride
 	}
 
 	return &App{
 		authOverride:     ao,
 		creds:            creds,
-		dbURL:            conf.DatabaseURL,
+		dbURL:            config.DatabaseURL,
 		projectID:        pid,
-		serviceAccountID: conf.ServiceAccountID,
-		storageBucket:    conf.StorageBucket,
+		serviceAccountID: config.ServiceAccountID,
+		storageBucket:    config.StorageBucket,
 		opts:             o,
 	}, nil
 }
@@ -100,6 +101,7 @@ func getConfigDefaults() (*firebase.Config, error) {
 			return nil, err
 		}
 	}
+
 	if err := json.Unmarshal(dat, c); err != nil {
 		return nil, err
 	}
